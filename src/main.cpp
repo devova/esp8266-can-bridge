@@ -62,7 +62,13 @@ uint8_t i1 = 0;
 uint8_t buf2[bufferSize];
 uint8_t i2 = 0;
 
-std::string command(""); 
+String command = "";
+
+String new_ssid = "";
+String new_pass = "";
+
+// Helper variables
+uint8_t h1;
 
 void setup()
 {
@@ -126,9 +132,15 @@ void loop()
             {
                 if (command[0] == 'C') // Each command should start from 'C'
                 {
-                    Serial.println(command.substr(1, 4).c_str());
+                    client.println(command.substring(1, 5));
+                    if (command.substring(1, 5) == "SSID")
+                    {
+                        h1 = command.indexOf(':', 5);
+                        new_ssid = command.substring(5, h1);
+                        new_pass = command.substring(h1 + 1);
+                    }
                 }
-                command.clear();
+                command = "";
             }
             if (i1 < bufferSize - 1)
                 i1++;
