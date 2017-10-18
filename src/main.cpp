@@ -5,9 +5,7 @@
 // Disclaimer: Don't use RoboRemo for life support systems
 // or any other situations where system failure may affect
 // user or environmental safety.
-
-#include <ESP8266WiFi.h>
-// #include <utils.h>
+#include <wifi_ssid.h>
 // config: ////////////////////////////////////////////////////////////
 
 #define UART_BAUD 9600
@@ -34,8 +32,8 @@ const int port = 9876; // and this port
 
 #ifdef MODE_STA
 // For STATION mode:
-const char *ssid = "we";     // Your ROUTER SSID
-const char *pw = "tina7777"; // and WiFi PASSWORD
+const char *ssid = "HUAWEI_nova";     // Your ROUTER SSID
+const char *pw = "12345678"; // and WiFi PASSWORD
 const int port = 9876;
 // You must connect the phone to the same router,
 // Then somehow find the IP that the ESP got from router, then:
@@ -63,9 +61,16 @@ uint8_t buf2[bufferSize];
 uint8_t i2 = 0;
 
 String command = "";
+String instruction = "";
 
 String new_ssid = "";
 String new_pass = "";
+
+// String ssid1 = "";
+// String pass1 = "";
+
+// String ssid2 = "";
+// String pass2 = "";
 
 // Helper variables
 uint8_t h1;
@@ -88,14 +93,7 @@ void setup()
     // STATION mode (ESP connects to router and gets an IP)
     // Assuming phone is also connected to that router
     // from RoboRemo you must connect to the IP of the ESP
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, pw);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print("Connecring to: ");
-        Serial.println(ssid);
-    }
+    WiFi_connect(ssid, pw);
     Serial.println(WiFi.localIP());
 #endif
 
@@ -132,12 +130,16 @@ void loop()
             {
                 if (command[0] == 'C') // Each command should start from 'C'
                 {
-                    client.println(command.substring(1, 5));
-                    if (command.substring(1, 5) == "SSID")
+                    instruction = command.substring(1, 5);
+                    if (instruction == "SSID")
                     {
                         h1 = command.indexOf(':', 5);
                         new_ssid = command.substring(5, h1);
                         new_pass = command.substring(h1 + 1);
+                        Serial.println(new_pass);
+                        if (not WiFi_try_new_ssid(new_ssid, new_pass)){
+                            WiFi_connect(ssid, pw);
+                        }
                     }
                 }
                 command = "";

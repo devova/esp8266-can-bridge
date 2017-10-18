@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "regex": "cpp"
+        "regex": "cpp",
+        "array": "cpp",
+        "initializer_list": "cpp"
     }
 }
