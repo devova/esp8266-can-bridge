@@ -1,58 +1,26 @@
-// ESP8266 WiFi <-> UART Bridge
-// by RoboRemo
-// www.roboremo.com
+#include <Arduino.h>
 
-// Disclaimer: Don't use RoboRemo for life support systems
-// or any other situations where system failure may affect
-// user or environmental safety.
-#include <wifi_ssid.h>
+#include <ESP8266WebServer.h>
+#include <DNSServer.h>
+#include <WiFiManager.h>
+
+#include <ESP8266mDNS.h>
+#include <WiFiClient.h>
+
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 // config: ////////////////////////////////////////////////////////////
 
-#define UART_BAUD 9600
-#define packTimeout 5 // ms (if nothing more on UART, then send packet)
+#define UART_BAUD 460800
+#define packTimeout 10 // ms (if nothing more on UART, then send packet)
 #define bufferSize 8192
 #define commandSize 255
 
-// #define MODE_AP // phone connects directly to ESP
-#define MODE_STA // ESP connects to WiFi router
-
-#define PROTOCOL_TCP
-//#define PROTOCOL_UDP
-
-#ifdef MODE_AP
-// For AP mode:
-const char *ssid = "mywifi";  // You will connect your phone to this Access Point
-const char *pw = "qwerty123"; // and this is the password
-IPAddress ip(192, 168, 0, 1); // From RoboRemo app, connect to this IP
-IPAddress netmask(255, 255, 255, 0);
-const int port = 9876; // and this port
-// You must connect the phone to this AP, then:
-// menu -> connect -> Internet(TCP) -> 192.168.0.1:9876
-#endif
-
-#ifdef MODE_STA
-// For STATION mode:
-const char *ssid = "HUAWEI_nova";     // Your ROUTER SSID
-const char *pw = "12345678"; // and WiFi PASSWORD
-const int port = 9876;
-// You must connect the phone to the same router,
-// Then somehow find the IP that the ESP got from router, then:
-// menu -> connect -> Internet(TCP) -> [ESP_IP]:9876
-#endif
-
 //////////////////////////////////////////////////////////////////////////
+const int port = 8088;
 
-#ifdef PROTOCOL_TCP
-#include <WiFiClient.h>
 WiFiServer server(port);
 WiFiClient client;
-#endif
-
-#ifdef PROTOCOL_UDP
-#include <WiFiUdp.h>
-WiFiUDP udp;
-IPAddress remoteIp;
-#endif
 
 uint8_t buf1[bufferSize];
 uint8_t i1 = 0;
@@ -75,6 +43,17 @@ String new_pass = "";
 // Helper variables
 uint8_t h1;
 
+void keepWiFi() {
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFiManager wifiManager;
+    wifiManager.autoConnect("CitroenCAN");
+    if (MDNS.begin("can")) {
+      MDNS.addService("can", "tcp", port);
+    } 
+    server.begin(); // start TCP server
+  }
+}
+
 void setup()
 {
 
@@ -82,36 +61,41 @@ void setup()
 
     Serial.begin(UART_BAUD);
 
-#ifdef MODE_AP
-    //AP mode (phone connects directly to ESP) (no router)
-    WiFi.mode(WIFI_AP);
-    WiFi.softAPConfig(ip, ip, netmask); // configure ip address for softAP
-    WiFi.softAP(ssid, pw);              // configure ssid and password for softAP
-#endif
+    keepWiFi();
 
-#ifdef MODE_STA
-    // STATION mode (ESP connects to router and gets an IP)
-    // Assuming phone is also connected to that router
-    // from RoboRemo you must connect to the IP of the ESP
-    WiFi_connect(ssid, pw);
-    Serial.println(WiFi.localIP());
-#endif
+    ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH)
+      type = "sketch";
+    else // U_SPIFFS
+      type = "filesystem";
 
-#ifdef PROTOCOL_TCP
-    Serial.println("Starting TCP Server");
-    server.begin(); // start TCP server
-#endif
-
-#ifdef PROTOCOL_UDP
-    Serial.println("Starting UDP Server");
-    udp.begin(port); // start UDP server
-#endif
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  MDNS.begin("can");
 }
 
 void loop()
 {
+    keepWiFi();
+    ArduinoOTA.handle();
 
-#ifdef PROTOCOL_TCP
     if (!client.connected())
     {                                // if client not connected
         client = server.available(); // wait for it to connect
@@ -137,9 +121,9 @@ void loop()
                         new_ssid = command.substring(5, h1);
                         new_pass = command.substring(h1 + 1);
                         Serial.println(new_pass);
-                        if (not WiFi_try_new_ssid(new_ssid, new_pass)){
-                            WiFi_connect(ssid, pw);
-                        }
+                        // if (not WiFi_try_new_ssid(new_ssid, new_pass)){
+                            
+                        // }
                     }
                 }
                 command = "";
@@ -180,54 +164,5 @@ void loop()
         client.write((char *)buf2, i2);
         i2 = 0;
     }
-#endif
-
-#ifdef PROTOCOL_UDP
-    // if there’s data available, read a packet
-    int packetSize = udp.parsePacket();
-    if (packetSize > 0)
-    {
-        remoteIp = udp.remoteIP(); // store the ip of the remote device
-        udp.read(buf1, bufferSize);
-        // now send to UART:
-        Serial.write(buf1, packetSize);
-    }
-
-    if (Serial.available())
-    {
-
-        // read the data until pause:
-        //Serial.println("sa");
-
-        while (1)
-        {
-            if (Serial.available())
-            {
-                buf2[i2] = (char)Serial.read(); // read char from UART
-                if (i2 < bufferSize - 1)
-                {
-                    i2++;
-                }
-            }
-            else
-            {
-                //delayMicroseconds(packTimeoutMicros);
-                //Serial.println("dl");
-                delay(packTimeout);
-                if (!Serial.available())
-                {
-                    //Serial.println("bk");
-                    break;
-                }
-            }
-        }
-
-        // now send to WiFi:
-        udp.beginPacket(remoteIp, port); // remote IP and port
-        udp.write(buf2, i2);
-        udp.endPacket();
-        i2 = 0;
-    }
-
-#endif
+    client.write("ping");
 }

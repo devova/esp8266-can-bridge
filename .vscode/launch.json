@@ -6,7 +6,7 @@
             "request": "launch",
             "cwd": "${workspaceRoot}",
             "name": "PlatformIO Debugger",
-            "target": "/Users/devova/Documents/PlatformIO/Projects/171016-082605-nodemcuv2/.pioenvs/nodemcuv2/firmware.elf",
+            "target": "/Users/devova/PycharmProjects/esp8266-can-bridge/.pioenvs/nodemcuv2/firmware.elf",
             "gdbpath": "/Users/devova/.platformio/penv/bin/piodebuggdb",
             "autorun": [ "source .pioinit" ]
         }

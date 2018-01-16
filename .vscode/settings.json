@@ -3,5 +3,8 @@
         "regex": "cpp",
         "array": "cpp",
         "initializer_list": "cpp"
+    },
+    "terminal.integrated.env.osx": {
+        "PATH": "/Users/devova/.platformio/penv/bin:/Library/Frameworks/Python.framework/Versions/3.6/bin:/usr/local/share/npm/bin:/Users/devova/.node/node_modules/bin:/Users/devova/.rvm/gems/ruby-2.1.2/bin:/Users/devova/.rvm/gems/ruby-2.1.2@global/bin:/Users/devova/.rvm/rubies/ruby-2.1.2/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/Users/devova/.rvm/bin:/usr/local/sbin"
     }
 }
